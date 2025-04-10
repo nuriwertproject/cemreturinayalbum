@@ -2,8 +2,77 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Cemre & Mehmet Ziya - Anı Albümü</title>
+  <script type="module">
+    // Firebase SDK'yı içe aktarıyoruz
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    // 🔐 BU KISMI KENDİ firebaseConfig'İN İLE DEĞİŞTİR
+ const firebaseConfig = {
+  apiKey: "AIzaSyA7ywMtJHi78nmibOU2xV9HEkz9GKWytbc",
+  authDomain: "cemre-ziyadugun.firebaseapp.com",
+  projectId: "cemre-ziyadugun",
+  storageBucket: "cemre-ziyadugun.firebasestorage.app",
+  messagingSenderId: "685971913726",
+  appId: "1:685971913726:web:50ebc2c8fccf75e895deaf",
+  measurementId: "G-RVFK8S3XB7"
+};
+    // Firebase'i başlat
+    const app = initializeApp(firebaseConfig);
+    const storage = getStorage(app);
+    const db = getFirestore(app);
+
+    const form = document.getElementById("memoryForm");
+    const gallery = document.getElementById("gallery");
+
+    // 📥 Anıları yükle
+    async function loadMemories() {
+      const q = query(collection(db, "memories"), orderBy("timestamp", "desc"));
+      const querySnapshot = await getDocs(q);
+      gallery.innerHTML = "";
+      querySnapshot.forEach(doc => {
+        const data = doc.data();
+        const div = document.createElement("div");
+        div.className = "entry";
+        div.innerHTML = `
+          <img src="${data.photoURL}" alt="Fotoğraf"/>
+          <h3>${data.name}</h3>
+          <p>${data.message}</p>
+        `;
+        gallery.appendChild(div);
+      });
+    }
+
+    loadMemories();
+
+    // 📤 Anı gönderme işlemi
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("name").value;
+      const message = document.getElementById("message").value;
+      const photo = document.getElementById("photo").files[0];
+
+      if (!photo) return;
+
+      const storageRef = ref(storage, 'photos/' + Date.now() + '_' + photo.name);
+      await uploadBytes(storageRef, photo);
+      const photoURL = await getDownloadURL(storageRef);
+
+      await addDoc(collection(db, "memories"), {
+        name,
+        message,
+        photoURL,
+        timestamp: new Date()
+      });
+
+      form.reset();
+      loadMemories();
+    });
+  </script>
+
   <style>
     body { font-family: Arial, sans-serif; background: #fffaf6; margin: 0; padding: 0; text-align: center; }
     h1 { margin-top: 30px; font-size: 2.5em; color: #7a4e2c; }
@@ -32,98 +101,5 @@
   </form>
 
   <div class="gallery" id="gallery"></div>
-
-  <!-- Google API -->
-  <script src="https://apis.google.com/js/api.js"></script>
-
-  <script>
-    const form = document.getElementById("memoryForm");
-    const gallery = document.getElementById("gallery");
-
-    // Google OAuth 2.0 ve API Client için başlangıç fonksiyonu
-    let gapiLoaded = false;
-
-    function start() {
-      gapi.load('client:auth2', initClient);
-    }
-
-    function initClient() {
-      gapi.client.init({
-        apiKey: 'AIzaSyDsRJ8qwAr5jsw10daJPzozyXDdnS5GIH8',  // API Key
-        clientId: '551642606530-s6021ju6ath2e6tk5n9glg699dh90stq.apps.googleusercontent.com',  // Client ID
-        scope: 'https://www.googleapis.com/auth/drive.file', // Google Drive erişimi
-        redirectUri: 'https://nuriwertproject.github.io', // Redirect URI
-      }).then(function () {
-        gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
-        updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-      });
-    }
-
-    function updateSigninStatus(isSignedIn) {
-      if (isSignedIn) {
-        console.log('Kullanıcı giriş yaptı!');
-      } else {
-        gapi.auth2.getAuthInstance().signIn();
-      }
-    }
-
-    // Fotoğraf yükleme ve albümde gösterme fonksiyonu
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      const name = document.getElementById("name").value;
-      const message = document.getElementById("message").value;
-      const photoInput = document.getElementById("photo");
-      const file = photoInput.files[0];
-
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function (event) {
-          // Önce fotoğrafı albüme ekleyelim
-          const div = document.createElement("div");
-          div.className = "entry";
-          div.innerHTML = `
-            <img src="${event.target.result}" alt="Fotoğraf" />
-            <h3>${name}</h3>
-            <p>${message}</p>
-          `;
-          gallery.prepend(div);
-          
-          // Google Drive'a fotoğrafı yükleyelim
-          const metadata = {
-            name: file.name,
-            mimeType: file.type
-          };
-          const media = {
-            mimeType: file.type,
-            body: file
-          };
-
-          const request = gapi.client.drive.files.create({
-            resource: metadata,
-            media: media,
-            fields: 'id'
-          });
-
-          request.execute(function (response) {
-            if (response.error) {
-              console.error("Google Drive API Error: ", response.error);
-              alert("Fotoğraf yüklenirken bir hata oluştu. Lütfen tekrar deneyin.");
-            } else {
-              if (response.id) {
-                console.log('Fotoğraf başarıyla yüklendi: ' + response.id);
-                const fileUrl = `https://drive.google.com/uc?export=view&id=${response.id}`;
-                div.innerHTML += `<a href="${fileUrl}" target="_blank">Google Drive Linki</a>`;
-              }
-            }
-          });
-
-          form.reset();
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-
-    window.onload = start;
-  </script>
 </body>
 </html>
