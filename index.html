@@ -105,10 +105,15 @@
           });
 
           request.execute(function (response) {
-            if (response.id) {
-              console.log('Fotoğraf başarıyla yüklendi: ' + response.id);
-              const fileUrl = `https://drive.google.com/uc?export=view&id=${response.id}`;
-              div.innerHTML += `<a href="${fileUrl}" target="_blank">Google Drive Linki</a>`;
+            if (response.error) {
+              console.error("Google Drive API Error: ", response.error);
+              alert("Fotoğraf yüklenirken bir hata oluştu. Lütfen tekrar deneyin.");
+            } else {
+              if (response.id) {
+                console.log('Fotoğraf başarıyla yüklendi: ' + response.id);
+                const fileUrl = `https://drive.google.com/uc?export=view&id=${response.id}`;
+                div.innerHTML += `<a href="${fileUrl}" target="_blank">Google Drive Linki</a>`;
+              }
             }
           });
 
